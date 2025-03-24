@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/frankielb/pokedex/internal/pokeapi"
 )
 
 var commandRegistry map[string]cliCommand
@@ -21,17 +23,28 @@ func init() {
 			description: "Exit the Pokedex",
 			callback:    commandExit,
 		},
+		"map": {
+			name:        "map",
+			description: "Display 20 locations",
+			callback:    commandMap,
+		},
+		"mapb": {
+			name:        "mapb",
+			description: "Display the previous 20 locations",
+			callback:    commandMapb,
+		},
 	}
 }
 
 type cliCommand struct {
 	name        string
 	description string
-	callback    func() error
+	callback    func(config *pokeapi.Config) error
 }
 
 func startRepl() {
 	scanner := bufio.NewScanner(os.Stdin)
+	config := &pokeapi.Config{}
 	for {
 		fmt.Print("Pokedex > ")
 		scanner.Scan()
@@ -43,20 +56,26 @@ func startRepl() {
 		commandName := words[0]
 		command, exists := commandRegistry[commandName]
 		if exists {
-			err := command.callback()
+			err := command.callback(config)
 			if err != nil {
 				fmt.Println(err)
 			}
 		} else {
 			fmt.Println("Unknown command")
 		}
-
-		//fmt.Println("Your command was:", firstWord)
-
 	}
 }
 
-func commandHelp() error {
+func cleanInput(text string) []string {
+
+	trim := strings.TrimSpace(text)
+	lower := strings.ToLower(trim)
+	words := strings.Fields(lower)
+
+	return words
+}
+
+func commandHelp(config *pokeapi.Config) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println()
@@ -68,17 +87,34 @@ func commandHelp() error {
 
 	return nil
 }
-func commandExit() error {
+func commandExit(config *pokeapi.Config) error {
 	fmt.Print("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func cleanInput(text string) []string {
+func commandMap(config *pokeapi.Config) error {
+	locations, err := pokeapi.GetLocations(config)
+	if err != nil {
+		return err
+	}
+	for _, loc := range locations {
+		fmt.Println(loc.Name)
+	}
+	return nil
+}
 
-	trim := strings.TrimSpace(text)
-	lower := strings.ToLower(trim)
-	words := strings.Fields(lower)
-
-	return words
+func commandMapb(config *pokeapi.Config) error {
+	if config.Previous == "" {
+		fmt.Println("You're on the first page")
+		return nil
+	}
+	locations, err := pokeapi.GetPreviousLocations(config)
+	if err != nil {
+		return err
+	}
+	for _, loc := range locations {
+		fmt.Println(loc.Name)
+	}
+	return nil
 }
