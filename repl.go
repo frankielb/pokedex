@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/frankielb/pokedex/internal/pokeapi"
+	"github.com/frankielb/pokedex/internal/pokecache"
 )
 
 var commandRegistry map[string]cliCommand
@@ -39,12 +41,13 @@ func init() {
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(config *pokeapi.Config) error
+	callback    func(config *pokeapi.Config, cache *pokecache.Cache) error
 }
 
 func startRepl() {
 	scanner := bufio.NewScanner(os.Stdin)
 	config := &pokeapi.Config{}
+	cache := pokecache.NewCache(5 * time.Second)
 	for {
 		fmt.Print("Pokedex > ")
 		scanner.Scan()
@@ -56,7 +59,7 @@ func startRepl() {
 		commandName := words[0]
 		command, exists := commandRegistry[commandName]
 		if exists {
-			err := command.callback(config)
+			err := command.callback(config, cache)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -75,7 +78,7 @@ func cleanInput(text string) []string {
 	return words
 }
 
-func commandHelp(config *pokeapi.Config) error {
+func commandHelp(config *pokeapi.Config, cache *pokecache.Cache) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println()
@@ -87,14 +90,14 @@ func commandHelp(config *pokeapi.Config) error {
 
 	return nil
 }
-func commandExit(config *pokeapi.Config) error {
+func commandExit(config *pokeapi.Config, cache *pokecache.Cache) error {
 	fmt.Print("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandMap(config *pokeapi.Config) error {
-	locations, err := pokeapi.GetLocations(config)
+func commandMap(config *pokeapi.Config, cache *pokecache.Cache) error {
+	locations, err := pokeapi.GetLocations(config, cache)
 	if err != nil {
 		return err
 	}
@@ -104,12 +107,12 @@ func commandMap(config *pokeapi.Config) error {
 	return nil
 }
 
-func commandMapb(config *pokeapi.Config) error {
+func commandMapb(config *pokeapi.Config, cache *pokecache.Cache) error {
 	if config.Previous == "" {
 		fmt.Println("You're on the first page")
 		return nil
 	}
-	locations, err := pokeapi.GetPreviousLocations(config)
+	locations, err := pokeapi.GetPreviousLocations(config, cache)
 	if err != nil {
 		return err
 	}

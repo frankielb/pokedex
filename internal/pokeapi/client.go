@@ -1,26 +1,45 @@
 package pokeapi
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
+
+	"github.com/frankielb/pokedex/internal/pokecache"
 )
 
 const baseURL = "https://pokeapi.co/api/v2/location-area/"
 
-func GetLocations(config *Config) ([]LocationArea, error) {
+func GetLocations(config *Config, cache *pokecache.Cache) ([]LocationArea, error) {
 	url := baseURL
 
 	if config.Next != "" {
 		url = config.Next
 	}
-	res, err := http.Get(url)
-	if err != nil {
-		return nil, err
+
+	var reader io.Reader
+	var body []byte
+	stored, exists := cache.Get(url)
+	if exists { //wether cached or not the data structure is the same
+		reader = bytes.NewReader(stored)
+	} else { //adds the non-cached to cache
+		res, err := http.Get(url)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
+		cache.Add(url, body)
+		reader = bytes.NewReader(body)
 	}
-	defer res.Body.Close()
 
 	var locationResp LocationAreaResponse
-	if err := json.NewDecoder(res.Body).Decode(&locationResp); err != nil {
+	if err := json.NewDecoder(reader).Decode(&locationResp); err != nil {
 		return nil, err
 	}
 
@@ -39,18 +58,33 @@ func GetLocations(config *Config) ([]LocationArea, error) {
 	return locationResp.Results, nil
 }
 
-func GetPreviousLocations(config *Config) ([]LocationArea, error) {
+func GetPreviousLocations(config *Config, cache *pokecache.Cache) ([]LocationArea, error) {
 	if config.Previous == "" {
 		return nil, nil
 	}
-	res, err := http.Get(config.Previous)
-	if err != nil {
-		return nil, err
+
+	var reader io.Reader
+	var body []byte
+	stored, exists := cache.Get(config.Previous)
+	if exists { //wether cached or not the data structure is the same
+		reader = bytes.NewReader(stored)
+	} else { //adds the non-cached to cache
+		res, err := http.Get(config.Previous)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
+		cache.Add(config.Previous, body)
+		reader = bytes.NewReader(body)
 	}
-	defer res.Body.Close()
 
 	var locationResp LocationAreaResponse
-	if err := json.NewDecoder(res.Body).Decode(&locationResp); err != nil {
+	if err := json.NewDecoder(reader).Decode(&locationResp); err != nil {
 		return nil, err
 	}
 
