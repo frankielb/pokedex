@@ -11,6 +11,36 @@ import (
 
 const baseURL = "https://pokeapi.co/api/v2/location-area/"
 
+func GetPokemons(name string, cache *pokecache.Cache) ([]PokemonEncounter, error) {
+	url := baseURL + name + "/"
+
+	var reader io.Reader
+	var body []byte
+
+	stored, exists := cache.Get(url)
+	if exists { //wether cached or not the data structure is the same
+		reader = bytes.NewReader(stored)
+	} else { //adds the non-cached to cache
+		res, err := http.Get(url)
+		if err != nil {
+			return nil, err
+		}
+		defer res.Body.Close()
+
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			return nil, err
+		}
+		cache.Add(url, body)
+		reader = bytes.NewReader(body)
+	}
+	var namedResponse NamedLocationResponse
+	if err := json.NewDecoder(reader).Decode(&namedResponse); err != nil {
+		return nil, err
+	}
+	return namedResponse.PokemonEncounters, nil
+}
+
 func GetLocations(config *Config, cache *pokecache.Cache) ([]LocationArea, error) {
 	url := baseURL
 

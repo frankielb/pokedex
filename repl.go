@@ -35,13 +35,18 @@ func init() {
 			description: "Display the previous 20 locations",
 			callback:    commandMapb,
 		},
+		"explore": {
+			name:        "explore",
+			description: "Show pokemon in location",
+			callback:    commandExplore,
+		},
 	}
 }
 
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(config *pokeapi.Config, cache *pokecache.Cache) error
+	callback    func(config *pokeapi.Config, cache *pokecache.Cache, input string) error
 }
 
 func startRepl() {
@@ -56,15 +61,34 @@ func startRepl() {
 		if len(words) == 0 {
 			continue
 		}
-		commandName := words[0]
-		command, exists := commandRegistry[commandName]
-		if exists {
-			err := command.callback(config, cache)
-			if err != nil {
-				fmt.Println(err)
+		userInput := ""
+		if len(words) == 1 {
+			commandName := words[0]
+			command, exists := commandRegistry[commandName]
+			if exists {
+				err := command.callback(config, cache, userInput)
+				if err != nil {
+					fmt.Println(err)
+				}
+			} else {
+				fmt.Println("Unknown command")
 			}
-		} else {
-			fmt.Println("Unknown command")
+		} //adding explore 2nd input logic
+		if len(words) == 2 {
+			commandName := words[0]
+			if commandName != "explore" {
+				continue
+			}
+			userInput = words[1]
+			command, exists := commandRegistry[commandName]
+			if exists {
+				err := command.callback(config, cache, userInput)
+				if err != nil {
+					fmt.Println(err)
+				}
+			} else {
+				fmt.Println("Unknown command")
+			}
 		}
 	}
 }
@@ -78,7 +102,7 @@ func cleanInput(text string) []string {
 	return words
 }
 
-func commandHelp(config *pokeapi.Config, cache *pokecache.Cache) error {
+func commandHelp(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println()
@@ -90,13 +114,13 @@ func commandHelp(config *pokeapi.Config, cache *pokecache.Cache) error {
 
 	return nil
 }
-func commandExit(config *pokeapi.Config, cache *pokecache.Cache) error {
+func commandExit(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
 	fmt.Print("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandMap(config *pokeapi.Config, cache *pokecache.Cache) error {
+func commandMap(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
 	locations, err := pokeapi.GetLocations(config, cache)
 	if err != nil {
 		return err
@@ -107,7 +131,7 @@ func commandMap(config *pokeapi.Config, cache *pokecache.Cache) error {
 	return nil
 }
 
-func commandMapb(config *pokeapi.Config, cache *pokecache.Cache) error {
+func commandMapb(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
 	if config.Previous == "" {
 		fmt.Println("You're on the first page")
 		return nil
@@ -118,6 +142,17 @@ func commandMapb(config *pokeapi.Config, cache *pokecache.Cache) error {
 	}
 	for _, loc := range locations {
 		fmt.Println(loc.Name)
+	}
+	return nil
+}
+
+func commandExplore(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
+	pokemons, err := pokeapi.GetPokemons(userInput, cache)
+	if err != nil {
+		return err
+	}
+	for _, pok := range pokemons {
+		fmt.Println(pok.Pokemon.Name)
 	}
 	return nil
 }
