@@ -40,19 +40,34 @@ func init() {
 			description: "Show pokemon in location",
 			callback:    commandExplore,
 		},
+		"catch": {
+			name:        "catch",
+			description: "Try and catch the pokemon",
+			callback:    commandCatch,
+		},
 	}
 }
 
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(config *pokeapi.Config, cache *pokecache.Cache, input string) error
+	callback    func(config *pokeapi.Config, cache *pokecache.Cache, input string, pokedex *Pokedex) error
+}
+
+type Pokedex struct {
+	caughtPokemon map[string]SavedPokemon
+}
+type SavedPokemon struct {
+	Name string
 }
 
 func startRepl() {
 	scanner := bufio.NewScanner(os.Stdin)
 	config := &pokeapi.Config{}
 	cache := pokecache.NewCache(5 * time.Second)
+	pokedex := &Pokedex{
+		caughtPokemon: make(map[string]SavedPokemon),
+	}
 	for {
 		fmt.Print("Pokedex > ")
 		scanner.Scan()
@@ -66,7 +81,7 @@ func startRepl() {
 			commandName := words[0]
 			command, exists := commandRegistry[commandName]
 			if exists {
-				err := command.callback(config, cache, userInput)
+				err := command.callback(config, cache, userInput, pokedex)
 				if err != nil {
 					fmt.Println(err)
 				}
@@ -76,13 +91,13 @@ func startRepl() {
 		} //adding explore 2nd input logic
 		if len(words) == 2 {
 			commandName := words[0]
-			if commandName != "explore" {
+			if commandName != "explore" && commandName != "catch" {
 				continue
 			}
 			userInput = words[1]
 			command, exists := commandRegistry[commandName]
 			if exists {
-				err := command.callback(config, cache, userInput)
+				err := command.callback(config, cache, userInput, pokedex)
 				if err != nil {
 					fmt.Println(err)
 				}
@@ -102,7 +117,7 @@ func cleanInput(text string) []string {
 	return words
 }
 
-func commandHelp(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
+func commandHelp(config *pokeapi.Config, cache *pokecache.Cache, userInput string, pokedex *Pokedex) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println()
@@ -114,13 +129,13 @@ func commandHelp(config *pokeapi.Config, cache *pokecache.Cache, userInput strin
 
 	return nil
 }
-func commandExit(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
+func commandExit(config *pokeapi.Config, cache *pokecache.Cache, userInput string, pokedex *Pokedex) error {
 	fmt.Print("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandMap(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
+func commandMap(config *pokeapi.Config, cache *pokecache.Cache, userInput string, pokedex *Pokedex) error {
 	locations, err := pokeapi.GetLocations(config, cache)
 	if err != nil {
 		return err
@@ -131,7 +146,7 @@ func commandMap(config *pokeapi.Config, cache *pokecache.Cache, userInput string
 	return nil
 }
 
-func commandMapb(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
+func commandMapb(config *pokeapi.Config, cache *pokecache.Cache, userInput string, pokedex *Pokedex) error {
 	if config.Previous == "" {
 		fmt.Println("You're on the first page")
 		return nil
@@ -146,13 +161,30 @@ func commandMapb(config *pokeapi.Config, cache *pokecache.Cache, userInput strin
 	return nil
 }
 
-func commandExplore(config *pokeapi.Config, cache *pokecache.Cache, userInput string) error {
+func commandExplore(config *pokeapi.Config, cache *pokecache.Cache, userInput string, pokedex *Pokedex) error {
 	pokemons, err := pokeapi.GetPokemons(userInput, cache)
 	if err != nil {
 		return err
 	}
 	for _, pok := range pokemons {
 		fmt.Println(pok.Pokemon.Name)
+	}
+	return nil
+}
+
+func commandCatch(config *pokeapi.Config, cache *pokecache.Cache, userInput string, pokedex *Pokedex) error {
+	fmt.Printf("Throwing a Pokeball at %v...\n", userInput)
+	caught, err := pokeapi.AttemptCatch(userInput)
+	if err != nil {
+		return err
+	}
+	if !caught {
+		fmt.Printf("%v escaped!\n", userInput)
+	} else {
+		fmt.Printf("%v was caught!\n", userInput)
+		pokedex.caughtPokemon[userInput] = SavedPokemon{
+			Name: userInput,
+		}
 	}
 	return nil
 }

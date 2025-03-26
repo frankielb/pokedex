@@ -3,13 +3,35 @@ package pokeapi
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 
 	"github.com/frankielb/pokedex/internal/pokecache"
 )
 
 const baseURL = "https://pokeapi.co/api/v2/location-area/"
+const pokemonURL = "https://pokeapi.co/api/v2/pokemon/"
+
+func AttemptCatch(name string) (bool, error) {
+	url := pokemonURL + name + "/"
+	res, err := http.Get(url)
+	if err != nil {
+
+		return false, err
+	}
+	defer res.Body.Close()
+	var pokemonExp PokemonExp
+	if err := json.NewDecoder(res.Body).Decode(&pokemonExp); err != nil {
+		fmt.Printf("%v not found\n", name)
+		return false, err
+	}
+	//lower exp, more likely
+	chance := max(100-pokemonExp.BaseExp/3, 10)
+	randN := rand.IntN(100) + 1
+	return randN <= chance, nil
+}
 
 func GetPokemons(name string, cache *pokecache.Cache) ([]PokemonEncounter, error) {
 	url := baseURL + name + "/"
