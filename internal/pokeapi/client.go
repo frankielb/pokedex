@@ -14,23 +14,23 @@ import (
 const baseURL = "https://pokeapi.co/api/v2/location-area/"
 const pokemonURL = "https://pokeapi.co/api/v2/pokemon/"
 
-func AttemptCatch(name string) (bool, error) {
+func AttemptCatch(name string) (bool, PokemonExp, error) {
 	url := pokemonURL + name + "/"
 	res, err := http.Get(url)
 	if err != nil {
 
-		return false, err
+		return false, PokemonExp{}, err
 	}
 	defer res.Body.Close()
 	var pokemonExp PokemonExp
 	if err := json.NewDecoder(res.Body).Decode(&pokemonExp); err != nil {
 		fmt.Printf("%v not found\n", name)
-		return false, err
+		return false, PokemonExp{}, err
 	}
 	//lower exp, more likely
 	chance := max(100-pokemonExp.BaseExp/3, 10)
 	randN := rand.IntN(100) + 1
-	return randN <= chance, nil
+	return randN <= chance, pokemonExp, nil
 }
 
 func GetPokemons(name string, cache *pokecache.Cache) ([]PokemonEncounter, error) {

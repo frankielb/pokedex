@@ -45,6 +45,11 @@ func init() {
 			description: "Try and catch the pokemon",
 			callback:    commandCatch,
 		},
+		"inspect": {
+			name:        "inspect",
+			description: "Show details of pokemon in pokedex",
+			callback:    commandInspect,
+		},
 	}
 }
 
@@ -55,10 +60,7 @@ type cliCommand struct {
 }
 
 type Pokedex struct {
-	caughtPokemon map[string]SavedPokemon
-}
-type SavedPokemon struct {
-	Name string
+	caughtPokemon map[string]pokeapi.PokemonExp
 }
 
 func startRepl() {
@@ -66,7 +68,7 @@ func startRepl() {
 	config := &pokeapi.Config{}
 	cache := pokecache.NewCache(5 * time.Second)
 	pokedex := &Pokedex{
-		caughtPokemon: make(map[string]SavedPokemon),
+		caughtPokemon: make(map[string]pokeapi.PokemonExp),
 	}
 	for {
 		fmt.Print("Pokedex > ")
@@ -91,7 +93,7 @@ func startRepl() {
 		} //adding explore 2nd input logic
 		if len(words) == 2 {
 			commandName := words[0]
-			if commandName != "explore" && commandName != "catch" {
+			if commandName != "explore" && commandName != "catch" && commandName != "inspect" {
 				continue
 			}
 			userInput = words[1]
@@ -174,7 +176,7 @@ func commandExplore(config *pokeapi.Config, cache *pokecache.Cache, userInput st
 
 func commandCatch(config *pokeapi.Config, cache *pokecache.Cache, userInput string, pokedex *Pokedex) error {
 	fmt.Printf("Throwing a Pokeball at %v...\n", userInput)
-	caught, err := pokeapi.AttemptCatch(userInput)
+	caught, pokemonInfo, err := pokeapi.AttemptCatch(userInput)
 	if err != nil {
 		return err
 	}
@@ -182,9 +184,28 @@ func commandCatch(config *pokeapi.Config, cache *pokecache.Cache, userInput stri
 		fmt.Printf("%v escaped!\n", userInput)
 	} else {
 		fmt.Printf("%v was caught!\n", userInput)
-		pokedex.caughtPokemon[userInput] = SavedPokemon{
-			Name: userInput,
-		}
+		pokedex.caughtPokemon[userInput] = pokemonInfo
 	}
 	return nil
+}
+
+func commandInspect(config *pokeapi.Config, cache *pokecache.Cache, userInput string, pokedex *Pokedex) error {
+	pokemonData, exists := pokedex.caughtPokemon[userInput]
+	if !exists {
+		fmt.Println("you have not caught that pokemon")
+		return nil
+	}
+	fmt.Printf("Name: %v\n", pokemonData.Name)
+	fmt.Printf("Height: %v\n", pokemonData.Height)
+	fmt.Printf("Weight: %v\n", pokemonData.Weight)
+	fmt.Println("Stats:")
+	for _, stat := range pokemonData.Stats {
+		fmt.Printf("  -%v: %v\n", stat.Stat.Name, stat.BaseStat)
+	}
+	fmt.Println("Types:")
+	for _, t := range pokemonData.Types {
+		fmt.Printf("  - %v\n", t.Type.Name)
+	}
+	return nil
+
 }
