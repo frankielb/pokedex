@@ -50,6 +50,11 @@ func init() {
 			description: "Show details of pokemon in pokedex",
 			callback:    commandInspect,
 		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "show all caught pokemon",
+			callback:    commandPokedex,
+		},
 	}
 }
 
@@ -208,4 +213,12 @@ func commandInspect(config *pokeapi.Config, cache *pokecache.Cache, userInput st
 	}
 	return nil
 
+}
+
+func commandPokedex(config *pokeapi.Config, cache *pokecache.Cache, userInput string, pokedex *Pokedex) error {
+	fmt.Println("Your Pokedex:")
+	for _, pokemon := range pokedex.caughtPokemon {
+		fmt.Printf(" - %v\n", pokemon.Name)
+	}
+	return nil
 }
